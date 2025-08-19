@@ -1,0 +1,27 @@
+# Core scientific computing
+numpy>=1.21.0
+pandas>=1.3.0
+scipy>=1.7.0
+
+# Machine learning
+scikit-learn>=1.0.0
+
+# Visualization
+matplotlib>=3.4.0
+seaborn>=0.11.0
+
+# For advanced balancing techniques 
+imbalanced-learn>=0.8.0
+
+# For explainable AI 
+shap>=0.40.0
+
+# For gradient boosting
+xgboost>=1.5.0
+
+# Optional dependencies for enhanced functionality
+# Install with: pip install -r requirements.txt
+
+# For notebook support (optional)
+# jupyter>=1.0.0
+# ipykernel>=6.0.0
