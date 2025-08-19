@@ -598,3 +598,30 @@ class MLComparativeFramework:
             top_path = f"{output_dir}/top_10_results.csv"
             top_results[['Model', 'Balancer', 'FeatureSet', 'Val_MCC', 'Val_ROC_AUC']].to_csv(top_path, index=False)
             print(f"Top 10 results saved to: {top_path}")
+
+# Example usage (requires actual data):
+"""
+# Initialize framework
+framework = MLComparativeFramework(random_state=42)
+
+# Load your data (X_train, y_train, X_val, y_val, X_test, y_test)
+# Make sure your data has the clinical features mentioned in the instructions
+# Refer to data_processing.py
+
+# Run comparative analysis
+results_df = framework.run_comparative_analysis(X_train, y_train, X_val, y_val)
+
+# Get best model summary
+best_model = framework.get_best_model_summary()
+
+# Final evaluation
+test_metrics, final_model = framework.final_evaluation(
+    X_train, y_train, X_test, y_test, output_dir="/path/to/output"
+)
+
+# Save results
+framework.save_results(output_dir="/path/to/output")
+"""
+
+print("Optimized ML Comparative Framework created successfully!")
+
