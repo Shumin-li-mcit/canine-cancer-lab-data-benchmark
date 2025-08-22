@@ -8,7 +8,7 @@ This study was designed to establish a rigorous performance benchmark for cancer
 
 ## 🔬 Abstract
 
-Cancer is a leading cause of mortality in the aging canine population. This study leverages the longitudinal cohort from the Morris Animal Foundation's Golden Retriever Lifetime Study (GRLS) to assess the feasibility of building a cancer risk classification model from routine lab data. Through a comprehensive and transparent comparison of 105 unique machine learning pipelines, we determined the maximal predictive performance achievable with this data modality. Our findings show that while a statistically significant signal exists, it is insufficient for building a clinically reliable classification tool due to the non-specific nature of the biomarkers and the profound challenge of confounding by treatment in observational data. This work serves as a critical benchmark and a methodological guide for future research in veterinary computational oncology.
+Cancer is a leading cause of mortality in the aging canine population. This study leverages the longitudinal cohort from the Morris Animal Foundation's Golden Retriever Lifetime Study (GRLS) to assess the feasibility of building a cancer risk classification model from routine lab data. Through a comprehensive and transparent comparison of 126 unique machine learning pipelines, we determined the maximal predictive performance achievable with this data modality. Our findings show that while a statistically significant signal exists, it is insufficient for building a clinically reliable classification tool due to the non-specific nature of the biomarkers and the profound challenge of confounding by treatment in observational data. This work serves as a critical benchmark and a methodological guide for future research in veterinary computational oncology.
 
 ---
 
@@ -16,10 +16,10 @@ Cancer is a leading cause of mortality in the aging canine population. This stud
 
 The final optimized model (a Logistic Regression with class weighting) demonstrated a clear divergence between its ability to rank patients by risk and its ability to accurately classify them.
 
-* **Good Discriminatory Power:** The model could distinguish between cancer-positive and cancer-negative visits reasonably well, achieving a **ROC-AUC of 0.809**.
+* **Good Discriminatory Power:** The model could distinguish between cancer-positive and cancer-negative visits reasonably well, achieving a **ROC-AUC of 0.815**.
 * **Poor Classification Performance:** This discriminatory ability did not translate into a clinically useful tool. The model had:
-    * A critically low **F1-Score of 0.24**.
-    * An extremely low **Positive Predictive Value (PPV) of 0.14**, meaning 86% of positive predictions were false alarms.
+    * A critically low **F1-Score of 0.25**.
+    * An extremely low **Positive Predictive Value (PPV) of 0.15**, meaning 85% of positive predictions were false alarms.
 * **Conclusion:** Routine laboratory data alone is **not sufficient** for reliable cancer screening in dogs. The future of this research lies in multi-modal data integration.
 
 ---
