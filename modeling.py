@@ -8,7 +8,7 @@ best-performing combination of machine learning algorithm, feature set, and
 data balancing technique, with final model evaluation and SHAP interpretation.
 
 It includes:
-1. Complete comparative framework (5 models × 3 feature sets × 7 balancing techniques)
+1. Complete comparative framework (6 models × 3 feature sets × 7 balancing techniques)
 2. Proper hyperparameter tuning with MCC optimization
 3. Final model evaluation with comprehensive metrics
 4. SHAP interpretation and visualization
@@ -95,7 +95,7 @@ class MLComparativeFramework:
         self.best_score = -np.inf
         self.feature_selectors = {}
         
-    def apply_feature_selection(self, X_train, y_train, X_val=None, X_test=None, method='all', k=20):
+    def apply_feature_selection(self, X_train, y_train, X_val=None, X_test=None, method='all', cv=5, scoring='roc_auc'):
         """
         Apply various feature selection methods
         
@@ -103,16 +103,29 @@ class MLComparativeFramework:
         X_train, y_train : Training data
         X_val, X_test : Validation and test data (optional)
         method : str, feature selection method ('univariate', 'rfe', 'manual', 'all')
-        k : int, number of features to select
+        cv : int, number of cross-validation folds for RFECV
+        scoring : str, the metric for RFECV to optimize
         
         Returns:
         Dictionary with selected datasets for each method
         """
         feature_sets = {}
+        optimal_k = None
+        
+        # Fine the optimal number of features (k) using RFECV
+        if any(m in method for m in ['univariate', 'rfe', 'all']):
+            print(f"--- Finding optimal number of features using RFECV (cv={cv}, scoring='{scoring}') ---")
+
+            estimator = lgb.LGBMClassifier(random_state=self.random_state, n_jobs=-1, verbose=-1)
+            rfecv_selector = RFECV(estimator=estimator, step=1, cv=cv, scoring=scoring, min_features_to_select=5, n_jobs=-1)
+            rfecv_selector.fit(X_train, y_train)
+
+            optimal_k = rfecv_selector.n_features_
+            print(f"RFECV determined the optimal number of features to be: {optimal_k}")
         
         if method in ['univariate', 'all']:
-            print(f"Applying univariate feature selection (k={k})...")
-            selector = SelectKBest(score_func=f_classif, k=k)
+            print(f"Applying univariate feature selection (k={optimal_k})...")
+            selector = SelectKBest(score_func=f_classif, k=optimal_k)
             X_train_uni = selector.fit_transform(X_train, y_train)
             selected_features = X_train.columns[selector.get_support()]
             
@@ -130,9 +143,9 @@ class MLComparativeFramework:
                     selector.transform(X_test), columns=selected_features, index=X_test.index)
         
         if method in ['rfe', 'all']:
-            print(f"Applying RFE feature selection (k={k})...")
+            print(f"Applying RFE feature selection (k={optimal_k})...")
             rf = RandomForestClassifier(n_estimators=50, random_state=self.random_state)
-            selector = RFE(rf, n_features_to_select=k)
+            selector = RFE(rf, n_features_to_select=optimal_k)
             X_train_rfe = selector.fit_transform(X_train, y_train)
             selected_features = X_train.columns[selector.get_support()]
             
@@ -154,10 +167,10 @@ class MLComparativeFramework:
             # Select top biomarkers based on statistical significance and 
             # clinical relevance (anemia, Thrombocytopenia, changes in WBC, hypercalcemia, hypoglycemia, elevated Liver Enzymes (ALT, ALP, GGT))
             manual_features = [
-                'age_at_visit', 'CHEM_Albumin', 'CHEM_Albumin:Globulin Ratio', 
+                'age_at_visit', 'CHEM_Albumin', 'CHEM_AlbuminGlobulin_Ratio', 
                 'CHEM_Magnesium', 'CBC_lymphocytes', 'CHEM_Globulin', 'CHEM_Calcium',
-                'CBC_MCHC', 'CHEM_Sodium', 'CBC_Hemoglobin (HGB)', 'CBC_WBC', 
-                'CHEM_GGT', 'CBC_platelets', 'CHEM_Glucose', 'CBC_band neutrophils'
+                'CBC_MCHC', 'CHEM_Sodium', 'CBC_Hemoglobin_HGB', 'CBC_WBC', 
+                'CHEM_GGT', 'CBC_platelets', 'CHEM_Glucose', 'CBC_band_neutrophils'
             ]
             
             # Filter features that exist in the dataset
@@ -187,7 +200,8 @@ class MLComparativeFramework:
             'LogisticRegression': LogisticRegression(
                 class_weight=class_weight_dict, 
                 random_state=self.random_state, 
-                max_iter=1000
+                max_iter=1000,
+                solver='liblinear'
             ),
             'RandomForest': RandomForestClassifier(
                 class_weight=class_weight_dict, 
@@ -195,8 +209,10 @@ class MLComparativeFramework:
             ),
             'MLP': MLPClassifier(
                 random_state=self.random_state, 
-                max_iter=500
-            )
+                max_iter=500,
+                hidden_layer_sizes=(100, 50)
+            ), 
+            'NaiveBayes': GaussianNB()
         }
         
         # Add gradient boosting models 
@@ -234,23 +250,27 @@ class MLComparativeFramework:
     def setup_hyperparameters(self):
         """Setup hyperparameter grids for each model"""
         param_grids = {
-            'LogisticRegression': {'C': [0.1, 1, 10, 100]},
+            'LogisticRegression': {'C': [0.001, 0.01, 0.1, 1, 10, 100]},
             'RandomForest': {
-                'n_estimators': [100, 200, 300],
-                'max_depth': [5, 10, 15, None],
-                'min_samples_split': [2, 5, 10]
+                'n_estimators': [50, 100, 200],
+                'max_depth': [3, 5, 10, 15, None],
+                'min_samples_split': [2, 5, 10],
+                'min_samples_leaf': [1, 2, 4]
             },
             'MLP': {
-                'hidden_layer_sizes': [(50,), (100,), (50, 50), (100, 50)],
-                'alpha': [0.001, 0.01, 0.1]
-            }
+                'hidden_layer_sizes': [(50,), (100,), (50, 50), (100, 50), (100, 50, 25)],
+                'alpha': [0.0001, 0.001, 0.01, 0.1],
+                'learning_rate': ['constant', 'adaptive']
+            },
+            'NaiveBayes': {}  # No hyperparameters to tune
         }
         
         if xgb is not None:
             param_grids['XGB'] = {
                 'n_estimators': [100, 200, 300],
                 'max_depth': [3, 6, 9],
-                'learning_rate': [0.01, 0.1, 0.2]
+                'learning_rate': [0.01, 0.1, 0.2],
+                'subsample': [0.8, 0.9, 1.0]
             }
         
         if lgb is not None:
@@ -389,6 +409,35 @@ class MLComparativeFramework:
         
         return self.best_params
     
+    def inspect_top_pipelines(self, n=10):
+        """
+        Displays the top n performing pipelines based on validation MCC.
+
+        Parameters:
+        n : int, the number of top pipelines to display.
+        """
+        if not hasattr(self, 'results_df'):
+            print("Analysis results not found. Run comparative analysis first.")
+            return
+
+        print(f"\n=== TOP {n} PERFORMING PIPELINES (by Validation MCC) 🏆 ===")
+
+        # Sort the results by 'Val_MCC' in descending order and get the top n
+        top_pipelines = self.results_df.sort_values(by='Val_MCC', ascending=False).head(n)
+
+        # Define the columns to display
+        cols_to_display = ['Model', 'Balancer', 'FeatureSet', 'Val_MCC', 'Val_ROC_AUC', 'Best_Params']
+    
+        # Iterate and print each of the top pipelines in a readable format
+        for index, row in top_pipelines[cols_to_display].iterrows():
+            print(f"\n--- Rank #{index + 1} ---")
+            print(f"  Model       : {row['Model']}")
+            print(f"  Balancer    : {row['Balancer']}")
+            print(f"  Feature Set : {row['FeatureSet']}")
+            print(f"  Validation MCC  : {row['Val_MCC']:.4f}")
+            print(f"  Validation AUC  : {row['Val_ROC_AUC']:.4f}")
+            print(f"  Optimized Params: {row['Best_Params']}")
+    
     def bootstrap_confidence_interval(self, y_true, y_proba, metric_func, n_bootstrap=1000, alpha=0.05):
         """Calculate bootstrap confidence interval for a metric"""
         bootstrap_scores = []
@@ -410,13 +459,14 @@ class MLComparativeFramework:
         
         return lower_bound, upper_bound
     
-    def final_evaluation(self, X_train, y_train, X_test, y_test, output_dir):
+    def final_evaluation(self, X_train, y_train, X_val, y_val, X_test, y_test, output_dir):
         """
         Perform final model evaluation on test set
         
         Parameters:
-        X_train, y_train : Full training data for final training
-        X_test, y_test : Test data for final evaluation
+        X_train, y_train : Training data
+        X_val, y_val : Validation data
+        X_test, y_test : Test data
         output_dir : str, directory to save results
         """
         if self.best_model is None:
@@ -425,6 +475,12 @@ class MLComparativeFramework:
         
         print("\n=== FINAL MODEL EVALUATION ===")
         
+        # Combine the training and validation datasets
+        print("Combining training and validation sets for final model training...")
+        X_train_full = pd.concat([X_train, X_val], axis=0)
+        y_train_full = pd.concat([y_train, y_val], axis=0)
+        print(f"New combined training set shape: {X_train_full.shape}")
+        
         # Get the best feature set
         best_fs_name = self.best_params['FeatureSet']
         best_fs_data = self.feature_selectors[best_fs_name]
@@ -432,9 +488,9 @@ class MLComparativeFramework:
         # Apply feature selection to full training and test data
         if best_fs_data['selector'] is not None:
             X_train_final = pd.DataFrame(
-                best_fs_data['selector'].transform(X_train), 
+                best_fs_data['selector'].transform(X_train_full), 
                 columns=best_fs_data['features'],
-                index=X_train.index
+                index=X_train_full.index
             )
             X_test_final = pd.DataFrame(
                 best_fs_data['selector'].transform(X_test),
@@ -443,7 +499,7 @@ class MLComparativeFramework:
             )
         else:
             # Manual feature selection
-            X_train_final = X_train[best_fs_data['features']]
+            X_train_final = X_train_full[best_fs_data['features']]
             X_test_final = X_test[best_fs_data['features']]
         
         # Retrain best model on full training data
@@ -455,7 +511,7 @@ class MLComparativeFramework:
         # Re-initialize the model to ensure a clean slate, using only its own parameters
         final_model = final_model.__class__(**final_model.get_params())
 
-        final_model.fit(X_train_final, y_train)
+        final_model.fit(X_train_final, y_train_full)
         
         # Make predictions on test set
         print("Evaluating on test set...")
